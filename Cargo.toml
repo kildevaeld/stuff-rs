@@ -1,7 +1,9 @@
 [workspace]
 
 members = [
-    "emitter",
-    "state",
-    "locking"
+  "emitter",
+  "state",
+  "locking",
+  "cli-update",
+  "dale",
 ]
