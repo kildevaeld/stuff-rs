@@ -32,7 +32,7 @@ where
 
 pub trait Transport<'a, E> {
     type Listener: Listener<'a, E>;
-    type Subscription;
+    type Subscription: Subscription;
 
     fn create_listener<L>(&self, listener: L) -> Self::Subscription
     where
