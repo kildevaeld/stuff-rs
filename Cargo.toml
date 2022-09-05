@@ -6,4 +6,5 @@ members = [
   "locking",
   "cli-update",
   "dale",
+  "driver",
 ]
