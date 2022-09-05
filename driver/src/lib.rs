@@ -1,7 +1,5 @@
-use std::{future::Future, marker::PhantomData, pin::Pin, sync::Arc};
-// use tokio::{select, sync::mpsc};
-
 use async_oneshot as oneshot;
+use std::{future::Future, marker::PhantomData, pin::Pin, sync::Arc};
 
 pub trait Spawner: Send + Sync {
     type Error;
@@ -76,7 +74,7 @@ where
     }
 }
 
-pub struct Message<E, H>
+struct Message<E, H>
 where
     H: Handler<E>,
 {
@@ -92,19 +90,32 @@ pub trait Handler<E>: Sized {
     fn process(&self, ctx: Context<E, Self>, event: E) -> Self::Future;
 }
 
-pub struct Runner<H, E, S> {
+impl<F, U, O, Err, E> Handler<E> for F
+where
+    F: Fn(Context<E, F>, E) -> U,
+    U: Future<Output = Result<O, Err>>,
+{
+    type Output = O;
+    type Error = Err;
+    type Future = U;
+    fn process(&self, ctx: Context<E, Self>, event: E) -> Self::Future {
+        (self)(ctx, event)
+    }
+}
+
+pub struct Driver<H, E, S> {
     workers: usize,
     handler: H,
     spawner: S,
     _e: PhantomData<E>,
 }
 
-impl<H, E, S> Runner<H, E, S>
+impl<H, E, S> Driver<H, E, S>
 where
     H: Handler<E>,
 {
-    pub fn new(spawner: S, handler: H) -> Runner<H, E, S> {
-        Runner {
+    pub fn new(spawner: S, handler: H) -> Driver<H, E, S> {
+        Driver {
             workers: 0,
             handler,
             spawner,
@@ -118,7 +129,7 @@ where
     }
 }
 
-impl<H, E, S> Runner<H, E, S>
+impl<H, E, S> Driver<H, E, S>
 where
     S: Spawner + Clone + 'static,
     E: Send + 'static,
@@ -136,21 +147,14 @@ where
         self,
         events: I,
     ) -> Vec<Result<H::Output, H::Error>> {
-        let (work_sx, work_rx) = async_channel::bounded::<Message<E, H>>(4);
+        let (work_sx, work_rx) = async_channel::bounded::<Message<E, H>>(self.workers.max(1));
         let (msg_sx, msg_rx) = async_channel::unbounded::<Message<E, H>>();
 
         let handler = Arc::new(self.handler);
 
-        let workers = self.workers.max(1);
-
-        let mut work_t = (0..workers)
-            .map(|_| {
-                let work_rx = work_rx.clone();
-                let handler = handler.clone();
-                self.spawner
-                    .spawn(create_worker(self.spawner.clone(), handler, work_rx))
-            })
-            .collect::<Vec<_>>();
+        let work_t = self
+            .spawner
+            .spawn(create_worker(self.spawner.clone(), handler, work_rx));
 
         let msg_t = self.spawner.spawn(async move {
             while let Ok(msg) = msg_rx.recv().await {
@@ -159,8 +163,6 @@ where
                 }
             }
         });
-
-        work_t.push(msg_t);
 
         let ctx = Context { sx: msg_sx };
 
@@ -172,9 +174,8 @@ where
             output.push(worker.await);
         }
 
-        for thread in work_t {
-            thread.await.ok();
-        }
+        work_t.await.ok();
+        msg_t.await.ok();
 
         output
     }
@@ -193,15 +194,12 @@ async fn create_worker<S, H, E>(
     H::Output: Send + Sync,
 {
     while let Ok(next) = rx.recv().await {
-        if let Some(mut returns) = next.returns {
-            let handler = handler.clone();
-            // Prevent locking the workers
-            spawner.spawn(async move {
-                let ret = handler.process(next.context, next.event).await;
+        let handler = handler.clone();
+        spawner.spawn(async move {
+            let ret = handler.process(next.context, next.event).await;
+            if let Some(mut returns) = next.returns {
                 returns.send(ret).ok();
-            });
-        } else {
-            handler.process(next.context, next.event).await.ok();
-        }
+            }
+        });
     }
 }
