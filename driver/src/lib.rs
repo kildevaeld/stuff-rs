@@ -105,7 +105,7 @@ where
 
 pub struct Driver<H, E, S> {
     workers: usize,
-    handler: H,
+    handler: Arc<H>,
     spawner: S,
     _e: PhantomData<E>,
 }
@@ -117,7 +117,7 @@ where
     pub fn new(spawner: S, handler: H) -> Driver<H, E, S> {
         Driver {
             workers: 0,
-            handler,
+            handler: Arc::new(handler),
             spawner,
             _e: PhantomData,
         }
@@ -138,19 +138,19 @@ where
     H::Error: Send + Sync,
     H::Output: Send + Sync,
 {
-    pub async fn run(self, event: E) -> Result<H::Output, H::Error> {
+    pub async fn run(&self, event: E) -> Result<H::Output, H::Error> {
         let mut ret = self.run_multiple([event]).await;
         ret.pop().unwrap()
     }
 
     pub async fn run_multiple<I: IntoIterator<Item = E>>(
-        self,
+        &self,
         events: I,
     ) -> Vec<Result<H::Output, H::Error>> {
         let (work_sx, work_rx) = async_channel::bounded::<Message<E, H>>(self.workers.max(1));
         let (msg_sx, msg_rx) = async_channel::unbounded::<Message<E, H>>();
 
-        let handler = Arc::new(self.handler);
+        let handler = self.handler.clone();
 
         let work_t = self
             .spawner
