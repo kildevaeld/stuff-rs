@@ -70,9 +70,9 @@ impl<T> LocalAsyncStateTrait<T> for State<T> {
     }
 }
 
-pub type AsyncMutexState<T> = AsyncLockState<T, Mutex<T>>;
+pub type AsyncMutexState<T> = AsyncLockState<T, Mutex<Option<T>>>;
 
-pub type AsyncRwLockState<T> = AsyncLockState<T, RwLock<T>>;
+pub type AsyncRwLockState<T> = AsyncLockState<T, RwLock<Option<T>>>;
 
 pub struct AsyncLockState<T, L> {
     lock: AsyncLock<Option<T>, L>,
