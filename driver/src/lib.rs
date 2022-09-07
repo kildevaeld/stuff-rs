@@ -1,6 +1,32 @@
 use async_oneshot as oneshot;
 use std::{future::Future, marker::PhantomData, pin::Pin, sync::Arc};
 
+pub fn yield_now() -> YieldNow {
+    YieldNow(false)
+}
+
+/// Future for the [`yield_now()`] function.
+#[derive(Debug)]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
+pub struct YieldNow(bool);
+
+impl Future for YieldNow {
+    type Output = ();
+
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        if !self.0 {
+            self.0 = true;
+            cx.waker().wake_by_ref();
+            std::task::Poll::Pending
+        } else {
+            std::task::Poll::Ready(())
+        }
+    }
+}
+
 pub trait Spawner: Send + Sync {
     type Error;
     fn spawn<F: Future + 'static + Send>(
@@ -161,6 +187,8 @@ where
                 if work_sx.send(msg).await.is_err() {
                     break;
                 }
+
+                yield_now().await;
             }
         });
 
@@ -201,5 +229,7 @@ async fn create_worker<S, H, E>(
                 returns.send(ret).ok();
             }
         });
+
+        yield_now().await;
     }
 }
