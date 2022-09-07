@@ -187,8 +187,6 @@ where
                 if work_sx.send(msg).await.is_err() {
                     break;
                 }
-
-                yield_now().await;
             }
         });
 
