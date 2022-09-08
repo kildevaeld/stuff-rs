@@ -6,5 +6,5 @@ version = "0.1.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-crossterm = "0.24"
-locking = {path = "../locking"}
+crossterm = "0.25"
+locking = {path = "../locking", features = ["std"]}
