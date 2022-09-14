@@ -11,3 +11,6 @@ impl fmt::Display for StateError {
         write!(f, "invalid state")
     }
 }
+
+#[cfg(feature = "std")]
+impl std::error::Error for StateError {}
