@@ -7,4 +7,5 @@ members = [
   "cli-update",
   "dale",
   "driver",
+  "listr",
 ]

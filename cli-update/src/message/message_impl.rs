@@ -3,7 +3,7 @@ use core::fmt;
 use crossterm::style;
 use std::{borrow::Cow, fmt::Write};
 
-const NEWLINE: char = '\n';
+pub const NEWLINE: char = '\n';
 
 impl<'a> Message for () {
     fn line_count(&self) -> usize {
@@ -17,7 +17,7 @@ impl<'a> Message for () {
 
 impl<'a> Message for &'a str {
     fn line_count(&self) -> usize {
-        (*self).lines().count()
+        (*self).lines().count().max(1)
     }
 
     fn message(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -27,7 +27,7 @@ impl<'a> Message for &'a str {
 
 impl<'a> Message for Cow<'a, str> {
     fn line_count(&self) -> usize {
-        (*self).lines().count()
+        (*self).lines().count().max(1)
     }
 
     fn message(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -71,14 +71,14 @@ where
         (&**self).message(f)
     }
 
-    fn update(&mut self) {
-        (&mut **self).update()
+    fn tick(&mut self) {
+        (&mut **self).tick()
     }
 }
 
 impl Message for String {
     fn line_count(&self) -> usize {
-        self.lines().count()
+        self.lines().count().max(1)
     }
 
     fn message(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -103,9 +103,9 @@ impl<M: Message> Message for Vec<M> {
         Ok(())
     }
 
-    fn update(&mut self) {
+    fn tick(&mut self) {
         for next in self.iter_mut() {
-            next.update()
+            next.tick()
         }
     }
 }
@@ -127,16 +127,16 @@ impl<M: Message> Message for [M] {
         Ok(())
     }
 
-    fn update(&mut self) {
+    fn tick(&mut self) {
         for next in self.iter_mut() {
-            next.update()
+            next.tick()
         }
     }
 }
 
 impl<S: Message + fmt::Display> Message for style::StyledContent<S> {
     fn line_count(&self) -> usize {
-        self.content().line_count()
+        self.content().line_count().max(1)
     }
 
     fn message(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -164,9 +164,9 @@ macro_rules! array {
                     Ok(())
                 }
 
-                fn update(&mut self) {
+                fn tick(&mut self) {
                     for next in self.iter_mut() {
-                        next.update()
+                        next.tick()
                     }
                 }
             }
@@ -183,7 +183,17 @@ macro_rules! count {
 
 macro_rules! tuples {
     ($first: ident) => {
-
+        impl<$first: Message> Message for ($first, ) {
+            fn line_count(&self) -> usize {
+                self.0.line_count()
+            }
+            fn message(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                self.0.message(f)
+            }
+            fn tick(&mut self) {
+                self.0.tick()
+            }
+        }
     };
     ($first: ident $($item: ident)*) => {
         tuples!($($item)*);
@@ -218,11 +228,11 @@ macro_rules! tuples {
                 Ok(())
             }
 
-            fn update(&mut self) {
+            fn tick(&mut self) {
                 let ($first,$($item),*) = self;
-                $first.update();
+                $first.tick();
                 $(
-                    $item.update();
+                    $item.tick();
                 )+
             }
         }
@@ -230,3 +240,15 @@ macro_rules! tuples {
 }
 
 tuples!(T0 T1 T2 T3 T4 T5 T6 T7 T8 T9 T10 T11 T12 T13 T14 T15 T16);
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_vec() {
+        let msg: Vec<String> = vec![];
+
+        assert_eq!(msg.line_count(), 0);
+    }
+}

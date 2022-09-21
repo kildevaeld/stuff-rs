@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use crate::message::Message;
 
 pub trait MessageExt: Message {
-    fn join<M: Message, S>(self, msg: M) -> And<Self, M, ()>
+    fn join<M: Message>(self, msg: M) -> And<Self, M, ()>
     where
         Self: Sized,
     {
@@ -69,10 +69,10 @@ where
         Ok(())
     }
 
-    fn update(&mut self) {
-        self.m1.update();
-        self.sep.update();
-        self.m2.update()
+    fn tick(&mut self) {
+        self.m1.tick();
+        self.sep.tick();
+        self.m2.tick()
     }
 }
 
@@ -106,8 +106,8 @@ where
         self.message.lock().unwrap().message(f)
     }
 
-    fn update(&mut self) {
-        self.message.lock().unwrap().update()
+    fn tick(&mut self) {
+        self.message.lock().unwrap().tick()
     }
 }
 
@@ -129,7 +129,7 @@ impl<M: Message> Message for DisplayMessage<M> {
         self.0.message(f)
     }
 
-    fn update(&mut self) {
-        self.0.update()
+    fn tick(&mut self) {
+        self.0.tick()
     }
 }

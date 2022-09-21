@@ -72,7 +72,7 @@ where
         execute!(self.state.writer.lock(), cursor::Show)
     }
 
-    pub fn update(&self, msg: impl Message) -> io::Result<()> {
+    pub fn update<M: Message>(&self, msg: M) -> io::Result<()> {
         self.update_from(msg, 0)
     }
 

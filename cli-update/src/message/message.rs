@@ -2,10 +2,10 @@ use std::fmt;
 
 pub type MessageBox = Box<dyn Message>;
 
-pub trait Message: Send {
+pub trait Message: Send + Sync {
     fn line_count(&self) -> usize;
     fn message(&self, f: &mut fmt::Formatter) -> fmt::Result;
-    fn update(&mut self) {}
+    fn tick(&mut self) {}
 }
 
 impl Message for MessageBox {
@@ -17,8 +17,8 @@ impl Message for MessageBox {
         (&**self).message(f)
     }
 
-    fn update(&mut self) {
-        (&mut **self).update()
+    fn tick(&mut self) {
+        (&mut **self).tick()
     }
 }
 
