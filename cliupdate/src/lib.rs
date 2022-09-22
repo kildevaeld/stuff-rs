@@ -4,5 +4,5 @@ pub mod spinner;
 
 pub use self::{
     manager::Manager,
-    message::{Message, SharedMessage},
+    message::{Message, MessageBox, MessageExt, SharedMessage},
 };
