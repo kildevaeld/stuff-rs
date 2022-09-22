@@ -1,0 +1,246 @@
+use crate::message::Message;
+use core::fmt;
+use std::{borrow::Cow, fmt::Write};
+
+pub const NEWLINE: char = '\n';
+
+impl<'a> Message for () {
+    fn line_count(&self) -> usize {
+        1
+    }
+
+    fn message(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        Ok(())
+    }
+}
+
+impl Message for char {
+    fn line_count(&self) -> usize {
+        1
+    }
+
+    fn message(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_char(*self)
+    }
+}
+
+impl<'a, M: Message> Message for &'a M {
+    fn line_count(&self) -> usize {
+        (**self).line_count()
+    }
+
+    fn message(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        (**self).message(f)
+    }
+}
+
+impl<'a, M: Message> Message for &'a mut M {
+    fn line_count(&self) -> usize {
+        (**self).line_count()
+    }
+
+    fn message(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        (**self).message(f)
+    }
+
+    fn tick(&mut self) {
+        (**self).tick()
+    }
+}
+
+impl<'a> Message for &'a str {
+    fn line_count(&self) -> usize {
+        self.trim().lines().count().max(1)
+    }
+
+    fn message(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.trim())
+    }
+}
+
+impl<'a> Message for Cow<'a, str> {
+    fn line_count(&self) -> usize {
+        self.trim().lines().count().max(1)
+    }
+
+    fn message(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.trim())
+    }
+}
+
+impl Message for String {
+    fn line_count(&self) -> usize {
+        self.as_str().line_count()
+    }
+
+    fn message(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.as_str().message(f)
+    }
+}
+
+impl<S: Message + fmt::Display> Message for crossterm::style::StyledContent<S> {
+    fn line_count(&self) -> usize {
+        self.content().line_count().max(1)
+    }
+
+    fn message(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        <crossterm::style::StyledContent<S> as fmt::Display>::fmt(self, f)
+    }
+}
+
+impl<M: Message> Message for Vec<M> {
+    fn line_count(&self) -> usize {
+        self.iter().fold(0, |prev, cur| prev + cur.line_count())
+    }
+
+    fn message(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let len = self.line_count();
+        for (count, next) in self.iter().enumerate() {
+            next.message(f)?;
+            if count + 1 != len {
+                f.write_char(NEWLINE)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn tick(&mut self) {
+        for next in self.iter_mut() {
+            next.tick()
+        }
+    }
+}
+
+impl<M: Message> Message for [M] {
+    fn line_count(&self) -> usize {
+        self.iter().fold(0, |prev, cur| prev + cur.line_count())
+    }
+
+    fn message(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let len = self.line_count();
+        for (count, next) in self.iter().enumerate() {
+            next.message(f)?;
+            if count + 1 != len {
+                f.write_char(NEWLINE)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn tick(&mut self) {
+        for next in self.iter_mut() {
+            next.tick()
+        }
+    }
+}
+
+macro_rules! array {
+    ($($count: literal)*) => {
+        $(
+            impl<M: Message> Message for [M; $count] {
+                fn line_count(&self) -> usize {
+                    self.iter().fold(0, |prev, cur| prev + cur.line_count())
+                }
+
+                fn message(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                    let len = self.line_count();
+                    for (count, next) in self.iter().enumerate() {
+                        next.message(f)?;
+                        if count + 1 != len {
+                            f.write_char(NEWLINE)?;
+                        }
+                    }
+
+                    Ok(())
+                }
+
+                fn tick(&mut self) {
+                    for next in self.iter_mut() {
+                        next.tick()
+                    }
+                }
+            }
+        )*
+    };
+}
+
+array!(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28);
+
+macro_rules! count {
+    () => (0usize);
+    ( $x:tt $($xs:tt)* ) => (1usize + count!($($xs)*));
+}
+
+macro_rules! tuples {
+    ($first: ident) => {
+        impl<$first: Message> Message for ($first, ) {
+            fn line_count(&self) -> usize {
+                self.0.line_count()
+            }
+            fn message(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                self.0.message(f)
+            }
+            fn tick(&mut self) {
+                self.0.tick()
+            }
+        }
+    };
+    ($first: ident $($item: ident)*) => {
+        tuples!($($item)*);
+        #[allow(non_snake_case)]
+        impl<$first: Message, $($item: Message),*> Message for ($first, $($item),*)  {
+            fn line_count(&self) -> usize {
+                let ($first, $($item),*) = self;
+                $first.line_count() +
+                $(
+                    $item.line_count() +
+                )+ 0
+            }
+
+            fn message(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                let len = count!($($item)*) + 1;
+                let mut i = 0;
+                let ($first, $($item),*) = self;
+                $first.message(f)?;
+                i += 1;
+                if i != len {
+                    f.write_char(NEWLINE)?;
+                }
+
+                $(
+                    $item.message(f)?;
+                    i += 1;
+                    if i != len {
+                        f.write_char(NEWLINE)?;
+                    }
+
+                )+
+                Ok(())
+            }
+
+            fn tick(&mut self) {
+                let ($first,$($item),*) = self;
+                $first.tick();
+                $(
+                    $item.tick();
+                )+
+            }
+        }
+    };
+}
+
+tuples!(T0 T1 T2 T3 T4 T5 T6 T7 T8 T9 T10 T11 T12 T13 T14 T15 T16);
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_vec() {
+        let msg: Vec<String> = vec![];
+
+        assert_eq!(msg.line_count(), 0);
+    }
+}

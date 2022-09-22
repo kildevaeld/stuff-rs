@@ -3,9 +3,9 @@
 members = [
   "emitter",
   "state",
-  "locking",
-  "cli-update",
+  "locking", # "cli-update",
   "dale",
   "driver",
   "listr",
+  "cliupdate",
 ]
