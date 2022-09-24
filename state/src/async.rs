@@ -2,7 +2,9 @@ use async_lock::{Mutex, RwLock};
 use async_trait::async_trait;
 use core::marker::PhantomData;
 use locking::{
-    async_lock::AsyncLock, lock::WeakLock, AsyncLockApi, LockApiReadGuard, LockApiReadWriteGuard,
+    async_lock::{AsyncLock, AsyncSendLock, WeakAsyncSendLock},
+    lock::WeakLock,
+    AsyncLockApi, LockApiReadGuard, LockApiReadWriteGuard,
 };
 use std::future::Future;
 
@@ -73,7 +75,9 @@ impl<T> LocalAsyncStateTrait<T> for State<T> {
     }
 }
 
-pub type AsyncMutexState<T> = AsyncLockState<T, Mutex<Option<T>>>;
+pub type AsyncMutexState<T> = AsyncLockState<T, AsyncSendLock<Mutex<Option<T>>>>;
+
+pub type WeakAsyncMutexState<T> = WeakAsyncLockState<T, WeakAsyncSendLock<Mutex<Option<T>>>>;
 
 pub type AsyncRwLockState<T> = AsyncLockState<T, RwLock<Option<T>>>;
 
