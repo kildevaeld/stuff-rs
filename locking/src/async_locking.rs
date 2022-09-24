@@ -1,8 +1,6 @@
 use std::{
     cell::{Ref, RefCell, RefMut},
-    marker::PhantomData,
     ops::{Deref, DerefMut},
-    sync::{Arc, Weak},
 };
 
 use async_trait::async_trait;
@@ -174,89 +172,5 @@ where
 
     fn new(inner: T) -> Self {
         RefCell::new(inner)
-    }
-}
-
-#[derive(Debug)]
-pub struct AsyncLock<T, L> {
-    lock: Arc<L>,
-    _t: PhantomData<T>,
-}
-
-unsafe impl<T, L: Send> Send for AsyncLock<T, L> {}
-
-unsafe impl<T, L: Sync> Sync for AsyncLock<T, L> {}
-
-impl<T, L> Clone for AsyncLock<T, L> {
-    fn clone(&self) -> Self {
-        Self {
-            lock: self.lock.clone(),
-            _t: self._t.clone(),
-        }
-    }
-}
-
-impl<T, L> AsyncLock<T, L> {
-    pub fn downgrade(&self) -> WeakAsyncLock<T, L> {
-        WeakAsyncLock {
-            lock: Arc::downgrade(&self.lock),
-            _t: PhantomData,
-        }
-    }
-}
-
-#[async_trait]
-impl<'a, T, L> AsyncLockApi<'a, T> for AsyncLock<T, L>
-where
-    L: AsyncLockApi<'a, T> + Send + Sync,
-{
-    type ReadGuard = <L as AsyncLockApi<'a, T>>::ReadGuard;
-
-    type ReadWriteGuard = <L as AsyncLockApi<'a, T>>::ReadWriteGuard;
-
-    async fn read(&'a self) -> Self::ReadGuard {
-        self.lock.read().await
-    }
-
-    async fn write(&'a self) -> Self::ReadWriteGuard {
-        self.lock.write().await
-    }
-
-    fn new(inner: T) -> Self {
-        AsyncLock {
-            lock: Arc::new(L::new(inner)),
-            _t: PhantomData,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct WeakAsyncLock<T, L> {
-    lock: Weak<L>,
-    _t: PhantomData<T>,
-}
-
-unsafe impl<T, L: Send> Send for WeakAsyncLock<T, L> {}
-
-unsafe impl<T, L: Sync> Sync for WeakAsyncLock<T, L> {}
-
-impl<T, L> Clone for WeakAsyncLock<T, L> {
-    fn clone(&self) -> Self {
-        Self {
-            lock: self.lock.clone(),
-            _t: self._t.clone(),
-        }
-    }
-}
-
-impl<'a, T, L> WeakAsyncLock<T, L> {
-    pub fn upgrade(&self) -> Option<AsyncLock<T, L>> {
-        match self.lock.upgrade() {
-            Some(lock) => Some(AsyncLock {
-                lock,
-                _t: PhantomData,
-            }),
-            None => None,
-        }
     }
 }

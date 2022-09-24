@@ -1,6 +1,9 @@
 use async_lock::{Mutex, RwLock};
 use async_trait::async_trait;
-use locking::{AsyncLock, AsyncLockApi, LockApiReadGuard, LockApiReadWriteGuard, WeakAsyncLock};
+use core::marker::PhantomData;
+use locking::{
+    async_lock::AsyncLock, lock::WeakLock, AsyncLockApi, LockApiReadGuard, LockApiReadWriteGuard,
+};
 use std::future::Future;
 
 use crate::{Downgrade, State, StateError, StateTrait};
@@ -75,7 +78,20 @@ pub type AsyncMutexState<T> = AsyncLockState<T, Mutex<Option<T>>>;
 pub type AsyncRwLockState<T> = AsyncLockState<T, RwLock<Option<T>>>;
 
 pub struct AsyncLockState<T, L> {
-    lock: AsyncLock<Option<T>, L>,
+    lock: L,
+    _t: PhantomData<T>,
+}
+
+impl<T, L> AsyncLockState<T, L>
+where
+    for<'a> L: AsyncLock<'a, Option<T>>,
+{
+    pub fn new(state: T) -> AsyncLockState<T, L> {
+        AsyncLockState {
+            lock: L::new(Some(state)),
+            _t: PhantomData,
+        }
+    }
 }
 
 #[async_trait]
@@ -137,27 +153,39 @@ where
     }
 }
 
-impl<T, L> Downgrade for AsyncLockState<T, L> {
-    type Output = WeakAsyncLockState<T, L>;
+impl<T, L> Downgrade for AsyncLockState<T, L>
+where
+    L: locking::lock::Downgrade,
+    L::Weak: Send + Sync,
+    for<'a> L: AsyncLock<'a, Option<T>>,
+    T: Send + Sync,
+{
+    type Output = WeakAsyncLockState<T, L::Weak>;
 
     fn downgrade(&self) -> Self::Output {
         WeakAsyncLockState {
             lock: self.lock.downgrade(),
+            _t: PhantomData,
         }
     }
 }
 
 //
 
-pub struct WeakAsyncLockState<T, L> {
-    lock: WeakAsyncLock<Option<T>, L>,
+pub struct WeakAsyncLockState<T, L>
+where
+    L: WeakLock,
+{
+    lock: L,
+    _t: PhantomData<T>,
 }
 
 #[async_trait]
 impl<T, L> AsyncStateTrait<T> for WeakAsyncLockState<T, L>
 where
     L: Sync + Send,
-    for<'a> L: AsyncLockApi<'a, Option<T>>,
+    L: WeakLock,
+    for<'a> L::Output: AsyncLockApi<'a, Option<T>> + Send,
     T: Send + Sync,
 {
     async fn read<F, U>(&self, func: F) -> Result<U::Output, StateError>
@@ -213,9 +241,13 @@ where
 
 #[async_trait]
 impl<T, L> AsyncIntoInner<T> for WeakAsyncLockState<T, L>
+// where
+//     for<'a> L: AsyncLockApi<'a, Option<T>> + Sync + Send,
+//     T: Send + Sync,
 where
-    for<'a> L: AsyncLockApi<'a, Option<T>> + Sync + Send,
     T: Send + Sync,
+    L: WeakLock + Send + Sync,
+    for<'a> L::Output: AsyncLockApi<'a, Option<T>> + Send + Sync,
 {
     async fn into_inner(self) -> Option<T> {
         let inner = match self.lock.upgrade() {
@@ -226,6 +258,7 @@ where
         let mut m = future.await;
         m.get_mut().take()
     }
+
     async fn replace_inner(&self, other: T) -> Option<T> {
         let inner = match self.lock.upgrade() {
             Some(i) => i,
