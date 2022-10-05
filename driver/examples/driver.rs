@@ -14,6 +14,8 @@ impl Handler<Event> for Handle {
 
     type Error = Infallible;
 
+    type Request = ();
+
     type Future = Pin<Box<dyn Future<Output = Result<Self::Output, Self::Error>> + Send>>;
 
     fn process(&self, ctx: driver::Context<Event, Self>, event: Event) -> Self::Future {
@@ -43,16 +45,19 @@ async fn main() {
     runner.workers(10);
 
     let ret = runner
-        .run_multiple([
-            Event::Greeting,
-            Event::Greeting,
-            Event::Greeting,
-            Event::Greeting,
-            Event::Greeting,
-            Event::Greeting,
-            Event::Create("Hej".to_string()),
-            Event::Create("Hejsan".to_string()),
-        ])
+        .run_multiple(
+            (),
+            [
+                Event::Greeting,
+                Event::Greeting,
+                Event::Greeting,
+                Event::Greeting,
+                Event::Greeting,
+                Event::Greeting,
+                Event::Create("Hej".to_string()),
+                Event::Create("Hejsan".to_string()),
+            ],
+        )
         .await;
 
     println!("RET {:?}", ret);

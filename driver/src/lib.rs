@@ -60,15 +60,18 @@ where
     H: Handler<E>,
 {
     sx: async_channel::Sender<Message<E, H>>,
+    req: H::Input,
 }
 
 impl<E, H> Clone for Context<E, H>
 where
     H: Handler<E>,
+    H::Input: Clone,
 {
     fn clone(&self) -> Self {
         Context {
             sx: self.sx.clone(),
+            req: self.req.clone(),
         }
     }
 }
@@ -76,6 +79,7 @@ where
 impl<E, H> Context<E, H>
 where
     H: Handler<E>,
+    H::Input: Clone,
 {
     pub fn send(&self, event: E) {
         self.sx
@@ -99,6 +103,10 @@ where
 
         async move { rx.await.unwrap() }
     }
+
+    pub fn arg(&self) -> &H::Input {
+        &self.req
+    }
 }
 
 struct Message<E, H>
@@ -112,22 +120,10 @@ where
 
 pub trait Handler<E>: Sized {
     type Output;
+    type Input;
     type Error;
     type Future: Future<Output = Result<Self::Output, Self::Error>>;
     fn process(&self, ctx: Context<E, Self>, event: E) -> Self::Future;
-}
-
-impl<F, U, O, Err, E> Handler<E> for F
-where
-    F: Fn(Context<E, F>, E) -> U,
-    U: Future<Output = Result<O, Err>>,
-{
-    type Output = O;
-    type Error = Err;
-    type Future = U;
-    fn process(&self, ctx: Context<E, Self>, event: E) -> Self::Future {
-        (self)(ctx, event)
-    }
 }
 
 pub struct Driver<H, E, S> {
@@ -164,14 +160,16 @@ where
     H::Future: Send,
     H::Error: Send + Sync,
     H::Output: Send + Sync,
+    H::Input: Clone + Send,
 {
-    pub async fn run(&self, event: E) -> Result<H::Output, H::Error> {
-        let mut ret = self.run_multiple([event]).await;
+    pub async fn run(&self, req: H::Input, event: E) -> Result<H::Output, H::Error> {
+        let mut ret = self.run_multiple(req, [event]).await;
         ret.pop().unwrap()
     }
 
     pub async fn run_multiple<I: IntoIterator<Item = E>>(
         &self,
+        req: H::Input,
         events: I,
     ) -> Vec<Result<H::Output, H::Error>> {
         let (work_sx, work_rx) = async_channel::bounded::<Message<E, H>>(self.workers.max(1));
@@ -191,15 +189,14 @@ where
             }
         });
 
-        let ctx = Context { sx: msg_sx };
+        let ctx = Context { sx: msg_sx, req };
 
-        let workers = events.into_iter().map(move |event| ctx.request(event));
+        let workers = events
+            .into_iter()
+            .map(move |event| ctx.request(event))
+            .collect::<futures::stream::FuturesOrdered<_>>();
 
-        let mut results = futures::stream::FuturesOrdered::new();
-
-        results.extend(workers);
-
-        let output = results.collect().await;
+        let output = workers.collect().await;
 
         work_t.await.ok();
         msg_t.await.ok();
@@ -219,6 +216,7 @@ async fn create_worker<S, H, E>(
     H::Future: Send,
     H::Error: Send + Sync,
     H::Output: Send + Sync,
+    H::Input: Send,
 {
     while let Ok(next) = rx.recv().await {
         let handler = handler.clone();
