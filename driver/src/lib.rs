@@ -1,4 +1,5 @@
 use async_oneshot as oneshot;
+use futures::StreamExt;
 use std::{future::Future, marker::PhantomData, pin::Pin, sync::Arc};
 
 pub fn yield_now() -> YieldNow {
@@ -194,11 +195,11 @@ where
 
         let workers = events.into_iter().map(move |event| ctx.request(event));
 
-        let mut output = Vec::default();
+        let mut results = futures::stream::FuturesOrdered::new();
 
-        for worker in workers {
-            output.push(worker.await);
-        }
+        results.extend(workers);
+
+        let output = results.collect().await;
 
         work_t.await.ok();
         msg_t.await.ok();
