@@ -1,4 +1,4 @@
-use crate::generic::{Extract, Func};
+use super::generic::{Extract, Func};
 use crate::{IntoOutcome, Outcome, Service};
 use core::future::Future;
 use core::pin::Pin;
@@ -10,6 +10,12 @@ use pin_project_lite::pin_project;
 pub struct Map<T, F> {
     pub(super) filter: T,
     pub(super) callback: F,
+}
+
+impl<T, F> Map<T, F> {
+    pub fn new(filter: T, callback: F) -> Map<T, F> {
+        Map { filter, callback }
+    }
 }
 
 impl<T, F, R> Service<R> for Map<T, F>

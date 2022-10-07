@@ -1,15 +1,14 @@
 use core::future::Future;
 
 use crate::{
-    and::And,
-    err_into::ErrInto,
-    generic::{Combine, Extract, Func, Tuple},
+    combinators::{AndThen, ErrInto, MapErr, OrService, Then},
+    filters::{And, Combine, Extract, Func, Map, Tuple},
     into_outcome::IntoOutcome,
-    map::Map,
-    map_err::MapErr,
     middleware::{Middleware, MiddlewareFn, MiddlewareFnService},
     service::Service,
+    types::MapFunc,
 };
+use futures_core::TryFuture;
 
 #[cfg(feature = "alloc")]
 use crate::boxed::{Box, BoxService, BoxedService};
@@ -23,8 +22,6 @@ use crate::outcome::Outcome;
 #[cfg(feature = "alloc")]
 use either::Either;
 
-use crate::or::OrService;
-
 pub trait ServiceExt<T>: Service<T> {
     fn or<O: Service<T>>(self, service: O) -> OrService<Self, O, T>
     where
@@ -33,68 +30,30 @@ pub trait ServiceExt<T>: Service<T> {
         OrService::new(self, service)
     }
 
-    #[cfg(feature = "alloc")]
-    fn then<F, O>(
-        self,
-        then: F,
-    ) -> BoxService<
-        'static,
-        T,
-        <O::Output as IntoOutcome<T>>::Success,
-        <O::Output as IntoOutcome<T>>::Failure,
-    >
+    fn then<F>(self, then: F) -> Then<Self, F>
     where
-        Self: Sized + Clone + Send + Sync + 'static,
-        <Self as Service<T>>::Output: Send,
-        <<Self as Service<T>>::Output as IntoOutcome<T>>::Failure: Send,
-        <<Self as Service<T>>::Output as IntoOutcome<T>>::Success: Send,
-        T: Send + 'static,
-        F: Fn(Self::Output) -> O + Clone + Send + Sync + 'static,
-
-        O: Future + Send + 'static,
-        O::Output: IntoOutcome<T>,
+        Self: Sized,
+        F: MapFunc<
+                Result<
+                    <Self::Output as IntoOutcome<T>>::Success,
+                    <Self::Output as IntoOutcome<T>>::Failure,
+                >,
+            > + Clone,
+        F::Output: TryFuture,
     {
-        (move |req: T| {
-            let this = self.clone();
-            let then = then.clone();
-            async move {
-                let ret = this.call(req).await;
-                then(ret).await
-            }
-        })
-        .boxed()
+        Then::new(self, then)
     }
 
-    #[cfg(feature = "alloc")]
-    fn and_then<F, O>(
-        self,
-        then: F,
-    ) -> BoxService<'static, T, O::Output, <Self::Output as IntoOutcome<T>>::Failure>
+    fn and_then<F>(self, then: F) -> AndThen<Self, F>
     where
-        Self: Sized + Clone + Send + Sync + 'static,
-        <Self as Service<T>>::Output: Send,
-        <<Self as Service<T>>::Output as IntoOutcome<T>>::Failure: Send,
-        <<Self as Service<T>>::Output as IntoOutcome<T>>::Success: Send,
-        T: Send + 'static,
-        F: Fn(<Self::Output as IntoOutcome<T>>::Success) -> O + Clone + Send + Sync + 'static,
-
-        O: Future + Send + 'static,
+        Self: Sized,
+        F: MapFunc<<Self::Output as IntoOutcome<T>>::Success> + Clone + Send,
+        F::Output: TryFuture + Send,
     {
-        (move |req: T| {
-            let this = self.clone();
-            let then = then.clone();
-            async move {
-                match this.call(req).await.into_outcome() {
-                    Outcome::Failure(err) => Outcome::Failure(err),
-                    Outcome::Next(next) => Outcome::Next(next),
-                    Outcome::Success(ret) => Outcome::Success(then(ret).await),
-                }
-            }
-        })
-        .boxed()
+        AndThen::new(self, then)
     }
 
-    #[cfg(feature = "alloc")]
+    #[cfg(any(feature = "alloc", feature = "std"))]
     fn on_err<F, O>(
         self,
         func: F,
@@ -106,6 +65,7 @@ pub trait ServiceExt<T>: Service<T> {
     >
     where
         Self: Sized + Clone + Send + Sync + 'static,
+        Self::Future: Send,
         <Self as Service<T>>::Output: Send,
         <<Self as Service<T>>::Output as IntoOutcome<T>>::Failure: Send,
         <<Self as Service<T>>::Output as IntoOutcome<T>>::Success: Send,
@@ -146,7 +106,7 @@ pub trait ServiceExt<T>: Service<T> {
         self.wrap(MiddlewareFn::new(middleware))
     }
 
-    #[cfg(feature = "alloc")]
+    #[cfg(any(feature = "alloc", feature = "std"))]
     fn boxed(
         self,
     ) -> BoxService<
@@ -157,7 +117,7 @@ pub trait ServiceExt<T>: Service<T> {
     >
     where
         Self: Sized + 'static + Send + Sync,
-        Self::Future: 'static,
+        Self::Future: 'static + Send,
     {
         Box::new(BoxedService::new(self))
     }
@@ -179,11 +139,11 @@ pub trait ServiceExt<T>: Service<T> {
     }
 
     #[cfg(any(feature = "alloc", feature = "std"))]
-    fn shared(self) -> crate::shared::SharedService<Self>
+    fn shared(self) -> crate::combinators::shared::SharedService<Self>
     where
         Self: Sized,
     {
-        crate::shared::SharedService::new(self)
+        crate::combinators::shared::SharedService::new(self)
     }
 
     // Filters
@@ -199,10 +159,7 @@ pub trait ServiceExt<T>: Service<T> {
         F: Service<T> + Clone,
         <F::Output as IntoOutcome<T>>::Success: Extract<T>,
     {
-        And {
-            first: self,
-            second: other,
-        }
+        And::new(self, other)
     }
 
     fn map<F>(self, fun: F) -> Map<Self, F>
@@ -211,10 +168,7 @@ pub trait ServiceExt<T>: Service<T> {
         <Self::Output as IntoOutcome<T>>::Success: Extract<T>,
         F: Func<<<Self::Output as IntoOutcome<T>>::Success as Extract<T>>::Extract> + Clone,
     {
-        Map {
-            filter: self,
-            callback: fun,
-        }
+        Map::new(self, fun)
     }
 }
 

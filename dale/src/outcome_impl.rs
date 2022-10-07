@@ -1,12 +1,12 @@
 use core::convert::Infallible;
 
 #[cfg(all(feature = "alloc", not(feature = "std")))]
-use alloc::{collections::BTreeMap, vec::Vec};
+use alloc::{collections::BTreeMap, string::String, vec::Vec};
 use either::Either;
 #[cfg(feature = "std")]
 use std::collections::{BTreeMap, HashMap};
 
-use crate::{generic::HList, IntoOutcome, Outcome};
+use crate::{filters::HList, IntoOutcome, Outcome};
 
 impl<S, E, N> IntoOutcome<N> for Outcome<S, E, N> {
     type Success = S;
@@ -116,7 +116,10 @@ macro_rules! outcome {
     };
 }
 
-outcome!(String, u8, i8, u16, i16, u32, i32, u64, i64, isize, usize, bool);
+outcome!(u8, i8, u16, i16, u32, i32, u64, i64, isize, usize, f32, f64, bool);
+
+#[cfg(feature = "alloc")]
+outcome!(String);
 
 impl<N> IntoOutcome<N> for () {
     type Failure = Infallible;

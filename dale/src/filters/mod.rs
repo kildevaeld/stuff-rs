@@ -1,3 +1,7 @@
+mod and;
+mod generic;
+mod map;
+
 use core::convert::Infallible;
 
 use crate::{IntoOutcome, Outcome, Service};
@@ -15,3 +19,5 @@ pub fn state<T: Send, S: Send + Clone + 'static>(
         async move { Outcome::Success((req, (state,))) }
     }
 }
+
+pub use self::{and::*, generic::*, map::*};

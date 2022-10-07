@@ -1,0 +1,32 @@
+[package]
+edition = "2021"
+name = "dale-http"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["hyper", "stream"]
+
+headers = ["dep:headers"]
+hyper = ["dep:hyper"]
+stream = ["hyper?/stream"]
+
+[dependencies]
+bytes = "1"
+dale = {path = "../dale", features = ["http", "std", "alloc"]}
+either = {version = "1"}
+futures-core = "0.3"
+http = {version = "0.2"}
+http-body = {version = "0.4"}
+log = "0.4"
+mime = "0.3"
+pin-project-lite = "0.2"
+
+headers = {version = "0.3", optional = true}
+hyper = {version = "0.14", features = [], optional = true}
+
+pin-utils = "0.1"
+
+[dev-dependencies]
+hyper = {version = "0.14", features = ["server", "http1", "runtime"]}
+tokio = {version = "1", features = ["rt", "net", "macros"]}

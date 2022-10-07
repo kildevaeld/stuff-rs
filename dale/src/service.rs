@@ -3,7 +3,7 @@ use core::future::Future;
 
 pub trait Service<T> {
     type Output: IntoOutcome<T>;
-    type Future: Future<Output = Self::Output> + Send;
+    type Future: Future<Output = Self::Output>;
     fn call(&self, req: T) -> Self::Future;
 }
 

@@ -4,8 +4,8 @@ name = "dale"
 version = "0.1.0"
 
 [dependencies]
-either = {version = "1", optional = true}
-futures-core = {version = "0.3"}
+either = {version = "1", default-features = false}
+futures-core = {version = "0.3", default-features = false}
 http = {version = "0.2", optional = true}
 pin-project-lite = "0.2"
 
@@ -13,8 +13,7 @@ pin-project-lite = "0.2"
 futures-executor = "0.3"
 
 [features]
-default = ["std", "either"]
+default = []
 
 alloc = []
-either = ["dep:either"]
-std = []
+std = ["either/use_std", "futures-core/std"]

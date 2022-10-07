@@ -28,7 +28,7 @@ impl<S> BoxedService<S> {
 impl<S, I> Service<I> for BoxedService<S>
 where
     S: Service<I>,
-    S::Future: 'static,
+    S::Future: 'static + Send,
 {
     type Output =
         Outcome<<S::Output as IntoOutcome<I>>::Success, <S::Output as IntoOutcome<I>>::Failure, I>;

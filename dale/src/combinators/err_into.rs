@@ -22,6 +22,8 @@ impl<S: Clone, E> Clone for ErrInto<S, E> {
     }
 }
 
+impl<S: Copy, E> Copy for ErrInto<S, E> {}
+
 unsafe impl<S: Sync, E> Sync for ErrInto<S, E> {}
 
 unsafe impl<S: Send, E> Send for ErrInto<S, E> {}

@@ -1,16 +1,22 @@
-use crate::generic::{Combine, Extract, HList, Tuple};
-use crate::{IntoOutcome, Outcome, Service};
+use crate::{ IntoOutcome, Outcome, Service};
 use either::Either;
 use futures_core::ready;
 use pin_project_lite::pin_project;
-use std::future::Future;
-use std::pin::Pin;
-use std::task::{Context, Poll};
+use core::future::Future;
+use core::pin::Pin;
+use core::task::{Context, Poll};
+use super::generic::{Combine, Extract, HList, Tuple};
 
 #[derive(Clone, Debug)]
 pub struct And<T, U> {
     pub(super) first: T,
     pub(super) second: U,
+}
+
+impl<T, U> And<T,U> {
+    pub fn new(first: T, second: U) -> And<T, U> {
+        And { first, second }
+    }
 }
 
 impl<'a, T, U, R> Service<R> for And<T, U>
@@ -33,7 +39,6 @@ where
             <<<U::Output as IntoOutcome<R>>::Success as Extract<R>>::Extract as Tuple>::HList,
         >>::Output as HList>::Tuple,
     ), Either<<T::Output as IntoOutcome<R>>::Failure, <U::Output as IntoOutcome<R>>::Failure>, R>;
-    // type Error = U::Error;
     type Future = AndFuture<R, T, U>;
 
     fn call(&self, req: R) -> Self::Future {
