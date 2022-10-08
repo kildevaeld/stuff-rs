@@ -1,6 +1,5 @@
 use crate::into_outcome::IntoOutcome;
 use crate::service::Service;
-
 use core::future::Future;
 use core::marker::PhantomData;
 
@@ -45,7 +44,7 @@ impl<R, F, T, U, O> Middleware<R, T> for MiddlewareFn<R, F, T>
 where
     T: Service<R> + Clone,
     F: Clone + Fn(T, R) -> U,
-    U: Send + Future<Output = O>,
+    U: Future<Output = O>,
     O: IntoOutcome<R>,
 {
     type Service = MiddlewareFnService<R, F, T>;
@@ -68,7 +67,7 @@ impl<R, F, T, U, O> Service<R> for MiddlewareFnService<R, F, T>
 where
     T: Service<R> + Clone,
     F: Fn(T, R) -> U,
-    U: Send + Future<Output = O>,
+    U: Future<Output = O>,
     O: IntoOutcome<R>,
 {
     type Output = O;

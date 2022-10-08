@@ -1,7 +1,8 @@
 mod body;
 pub mod common;
 pub mod error;
-// mod file;
+#[cfg(feature = "fs")]
+mod file;
 pub mod filters;
 mod modifier;
 mod modifiers;

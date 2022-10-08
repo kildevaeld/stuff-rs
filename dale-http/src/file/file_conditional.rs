@@ -9,7 +9,9 @@ use std::io;
 use std::pin::Pin;
 use std::{fs::Metadata, task::Poll};
 
-use crate::{Body, Error, Modifier, Set, With};
+use crate::error::Error;
+use crate::modifier::{Modifier, Set, With};
+use crate::Body;
 
 use super::file_options::{Cond, FileOptions};
 

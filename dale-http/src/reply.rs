@@ -4,17 +4,14 @@ use std::convert::Infallible;
 // use crate::modifier::Set;
 use crate::{
     body::Body,
+    error::Error,
     modifier::{Set, With},
     modifiers::{Header, Redirect},
 };
-use dale::{filters::One, IntoOutcome, Outcome};
+use dale::{filters::One, IntoOutcome, Outcome, Service};
 use either::Either;
-#[cfg(feature = "headers")]
 use http::{header, HeaderValue, StatusCode};
 use http::{Request, Response, Uri};
-
-#[cfg(feature = "serialize")]
-pub use crate::serialize::reply::*;
 
 pub trait Reply<B> {
     fn into_response(self) -> Response<B>;
@@ -78,17 +75,13 @@ pub struct Text<S> {
     body: S,
 }
 
-// #[cfg(feature = "headers")]
-// impl<S: ToString + 'static + Send + Sync + Clone, B: Body + Send>
-//     Service<Request<B>> for Text<S>
-// {
-//     type Output = Text<S>;
-//     type Error = Error;
-//     type Future = futures_util::future::Ready<Result<Self::Output, Rejection<Request<B>, Error>>>;
-//     fn call(&self, _req: Request<B>) -> Self::Future {
-//         futures_util::future::ok(self.clone())
-//     }
-// }
+impl<S: ToString + Clone, B: Body> Service<Request<B>> for Text<S> {
+    type Output = Outcome<Text<S>, Error, Request<B>>;
+    type Future = std::future::Ready<Self::Output>;
+    fn call(&self, _req: Request<B>) -> Self::Future {
+        std::future::ready(Outcome::Success(self.clone()))
+    }
+}
 
 const MIME_TEXT: HeaderValue = HeaderValue::from_static("text/plain");
 const MIME_HTML: HeaderValue = HeaderValue::from_static("text/html");
@@ -125,6 +118,14 @@ pub struct Html<S> {
     body: S,
 }
 
+impl<S: ToString + Clone, B: Body> Service<Request<B>> for Html<S> {
+    type Output = Outcome<Html<S>, Error, Request<B>>;
+    type Future = std::future::Ready<Self::Output>;
+    fn call(&self, _req: Request<B>) -> Self::Future {
+        std::future::ready(Outcome::Success(self.clone()))
+    }
+}
+
 impl<S: ToString, B: Body> Reply<B> for Html<S> {
     #[inline(always)]
     fn into_response(self) -> Response<B> {
@@ -145,21 +146,13 @@ impl<S: ToString, B: Body> IntoOutcome<Request<B>> for Html<S> {
 }
 
 pub fn html<S: ToString>(body: S) -> Html<S> {
-    return Html { body };
+    Html { body }
+}
+
+pub fn text<S: ToString>(body: S) -> Text<S> {
+    Text { body }
 }
 
 pub fn redirect<B: Body>(uri: impl Into<Uri>) -> Response<B> {
     Response::with(Redirect(uri.into()))
 }
-
-// #[cfg(feature = "headers")]
-// impl<S: ToString + 'static + Send + Sync + Clone, B: Body + Send>
-//     Service<Request<B>> for Html<S>
-// {
-//     type Output = Html<S>;
-//     type Error = Error;
-//     type Future = futures_util::future::Ready<Result<Self::Output, Rejection<Request<B>, Error>>>;
-//     fn call(&self, _req: Request<B>) -> Self::Future {
-//         futures_util::future::ok(self.clone())
-//     }
-// }

@@ -44,7 +44,6 @@ impl<S, E> ErrInto<S, E> {
 impl<S, E, R> Service<R> for ErrInto<S, E>
 where
     S: Service<R>,
-    R: Send,
     <S::Output as IntoOutcome<R>>::Failure: Into<E>,
 {
     type Output = Outcome<<S::Output as IntoOutcome<R>>::Success, E, R>;

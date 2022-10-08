@@ -1,9 +1,12 @@
 use super::ToBytes;
-use crate::{error::Error, Body};
+use crate::{
+    error::{Error, KnownError},
+    Body,
+};
 use futures_core::{ready, Future};
 use http::Request;
 use pin_project_lite::pin_project;
-use std::task::Poll;
+use std::{str::ParseBoolError, task::Poll};
 
 pin_project! {
     pub struct ToText<'a, B> where B: Body {
@@ -63,7 +66,9 @@ where
 
                     let text = match String::from_utf8(bytes.to_vec()) {
                         Ok(ret) => ret,
-                        Err(err) => panic!("not valid string"),
+                        Err(err) => {
+                            return Poll::Ready(Err(KnownError::Utf8(err.utf8_error()).into()))
+                        }
                     };
 
                     return Poll::Ready(Ok(text));

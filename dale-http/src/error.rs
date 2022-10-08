@@ -25,12 +25,16 @@ impl Error {
 }
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
         todo!()
     }
 }
 
-impl StdError for Error {}
+impl StdError for Error {
+    fn cause(&self) -> Option<&dyn StdError> {
+        Some(&*self.error)
+    }
+}
 
 impl From<Infallible> for Error {
     fn from(error: Infallible) -> Error {
@@ -84,10 +88,11 @@ pub enum KnownError {
     PayloadTooLarge,
     InvalidHeader(String),
     MissingHeader(String),
+    Utf8(std::str::Utf8Error),
 }
 
 impl fmt::Display for KnownError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
         todo!()
     }
 }

@@ -10,7 +10,7 @@ pub trait Service<T> {
 impl<T, F, U> Service<T> for F
 where
     F: Fn(T) -> U,
-    U: Future + Send,
+    U: Future,
     U::Output: IntoOutcome<T>,
 {
     type Output = U::Output;
@@ -29,7 +29,7 @@ pub struct ServiceFn<F> {
 impl<T, F, U> Service<T> for ServiceFn<F>
 where
     F: Fn(T) -> U,
-    U: Future + Send,
+    U: Future,
     U::Output: IntoOutcome<T>,
 {
     type Output = U::Output;

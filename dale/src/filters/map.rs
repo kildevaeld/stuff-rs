@@ -22,7 +22,7 @@ impl<T, F, R> Service<R> for Map<T, F>
 where
     T: Service<R>,
     <T::Output as IntoOutcome<R>>::Success: Extract<R>,
-    F: Func<<<T::Output as IntoOutcome<R>>::Success as Extract<R>>::Extract> + Clone + Send,
+    F: Func<<<T::Output as IntoOutcome<R>>::Success as Extract<R>>::Extract> + Clone,
 {
     type Output = Outcome<(R, (F::Output,)), <T::Output as IntoOutcome<R>>::Failure, R>;
     type Future = MapFuture<T, F, R>;
@@ -49,7 +49,7 @@ impl<T, F, R> Future for MapFuture<T, F, R>
 where
     T: Service<R>,
     <T::Output as IntoOutcome<R>>::Success: Extract<R>,
-    F: Func<<<T::Output as IntoOutcome<R>>::Success as Extract<R>>::Extract> + Clone + Send,
+    F: Func<<<T::Output as IntoOutcome<R>>::Success as Extract<R>>::Extract> + Clone,
 {
     #[allow(clippy::type_complexity)]
     type Output = Outcome<(R, (F::Output,)), <T::Output as IntoOutcome<R>>::Failure, R>;

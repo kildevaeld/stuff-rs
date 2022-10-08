@@ -65,6 +65,37 @@ pub fn optional<H: Header + Send + 'static, B: Send + 'static>() -> impl Service
     }
 }
 
+// #[cfg(feature = "headers")]
+// pub fn optional<H: Header, B>() -> Optional<B, H> {
+//     Optional(PhantomData)
+// }
+
+// #[derive(Debug)]
+// pub struct Optional<B, H: Header>(PhantomData<(B, H)>);
+
+// impl<B, H: Header> Clone for Optional<B, H> {
+//     fn clone(&self) -> Self {
+//         Optional(PhantomData)
+//     }
+// }
+
+// impl<B, H: Header> Copy for Optional<B, H> {}
+
+// unsafe impl<B, H: Header> Send for Optional<B, H> {}
+
+// unsafe impl<B, H: Header> Sync for Optional<B, H> {}
+
+// impl<B, H: Header> Service<Request<B>> for Optional<B, H> {
+//     type Output = Outcome<(Request<B>, One<Option<H>>), Error, Request<B>>;
+
+//     type Future = std::future::Ready<Self::Output>;
+
+//     fn call(&self, req: Request<B>) -> Self::Future {
+//         let header = req.headers().typed_get();
+//         std::future::ready(Outcome::Success((req, (header,))))
+//     }
+// }
+
 pub fn optional_str<S: AsHeaderName + Clone + Send + Sync + 'static, B: Send + 'static>(
     name: S,
 ) -> impl Service<

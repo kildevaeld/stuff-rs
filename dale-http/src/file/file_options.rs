@@ -20,16 +20,6 @@ pub(crate) struct FileOptions {
     range: Option<Range>,
 }
 
-// impl<N> IntoOutcome<N> for FileOptions {
-//     type Success = Self;
-
-//     type Failure = Infallible;
-
-//     fn into_outcome(self) -> Outcome<Self::Success, Self::Failure, N> {
-//         Outcome::Success(self)
-//     }
-// }
-
 pub(crate) enum Cond<B> {
     NoBody(Response<B>),
     WithBody(Option<Range>),
@@ -89,30 +79,22 @@ impl FileOptions {
 pub(crate) fn file_options<B>() -> impl Service<
     Request<B>,
     Future = impl Future + Send,
-    // Output = Outcome<(Request<B>, ()), Error, Request<B>>,
->
+    Output = Outcome<(Request<B>, (FileOptions,)), Error, Request<B>>,
+> + Copy
 where
     B: Send + 'static,
 {
-    // filters::header::optional()
-    //     .and(filters::header::optional())
-    //     .and(filters::header::optional())
-    //     .and(filters::header::optional())
-    //     .map(
-    //         |if_modified_since, if_unmodified_since, if_range, range| FileOptions {
-    //             if_modified_since,
-    //             if_unmodified_since,
-    //             if_range,
-    //             range,
-    //         },
-    //     )
     filters::header::optional()
         .and(filters::header::optional())
+        .and(filters::header::optional())
+        .and(filters::header::optional())
         .map(
-            |if_modified_since: Option<IfModifiedSince>,
-             if_unmodified_since: Option<IfUnmodifiedSince>| {
-                //
-                ()
+            |if_modified_since, if_unmodified_since, if_range, range| FileOptions {
+                if_modified_since,
+                if_unmodified_since,
+                if_range,
+                range,
             },
         )
+        .err_into()
 }

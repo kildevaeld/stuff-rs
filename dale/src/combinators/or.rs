@@ -35,10 +35,9 @@ impl<T1, T2, I> OrService<T1, T2, I> {
 
 impl<T1, T2, R> Service<R> for OrService<T1, T2, R>
 where
-    R: Send,
-    T1: Service<R> + Send,
+    T1: Service<R>,
     T1::Future: 'static,
-    T2: Service<R> + Clone + Sync + Send + 'static,
+    T2: Service<R> + Clone + 'static,
 {
     type Output = Either<
         Outcome<
