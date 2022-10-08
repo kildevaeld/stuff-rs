@@ -1,6 +1,6 @@
-use crate::error::Error;
 #[cfg(feature = "headers")]
-use crate::KnownError;
+use crate::error::KnownError;
+use crate::{common::ToText, error::Error};
 use bytes::{Buf, Bytes};
 use dale::{Outcome, Service, ServiceExt};
 use futures_core::Future;
@@ -31,25 +31,21 @@ pub fn content_length_limit<B: Send + 'static>(
     limit: u64,
 ) -> impl Service<
     Request<B>,
-    Output = (Request<B>, ()),
-    Error = impl Into<Error> + Rejection<Request<B>>,
     Future = impl Future + Send,
+    Output = Outcome<(Request<B>, ()), Error, Request<B>>,
 > + Copy {
-    use mdv::Reject;
-
-    crate::filters::header().then(
-        move |(req, (ContentLength(length),)): (Request<B>, (ContentLength,))| async move {
-            if length <= limit {
-                Ok((req, ()))
-            } else {
-                log::debug!("content-length: {} is over limit {}", length, limit);
-                Err(Reject::Reject(
-                    req,
-                    Error::from(KnownError::PayloadTooLarge),
-                ))
-            }
-        },
-    )
+    crate::filters::header::header()
+        .and_then(
+            move |(req, (ContentLength(length),)): (Request<B>, (ContentLength,))| async move {
+                if length <= limit {
+                    Ok((req, ()))
+                } else {
+                    log::debug!("content-length: {} is over limit {}", length, limit);
+                    Err(Error::from(KnownError::PayloadTooLarge))
+                }
+            },
+        )
+        .err_into()
 }
 
 pub fn body<B: Body + Send + 'static>() -> impl Service<
@@ -74,7 +70,7 @@ where
 {
     body()
         .and_then(|(req, (body,))| async move {
-            match crate::common::aggregate(body).await {
+            match crate::common::Aggregate::new(body).await {
                 Ok(ret) => Ok((req, (ret,))),
                 Err(err) => Err(err),
             }
@@ -86,14 +82,14 @@ pub fn bytes<B: Body + Send + 'static>() -> impl Service<
     Request<B>,
     Output = Outcome<(Request<B>, (Bytes,)), Error, Request<B>>,
     Future = impl Future + Send,
-> + Clone
+> + Copy
 where
     B::Data: Send,
     B::Error: Into<Error> + Send,
 {
     body()
         .and_then(|(req, (body,))| async move {
-            match crate::common::to_bytes(body).await {
+            match crate::common::ToBytes::new(body).await {
                 Ok(ret) => Ok((req, (ret,))),
                 Err(err) => Err(err),
             }
@@ -101,18 +97,17 @@ where
         .err_into()
 }
 
-// pub fn text<B: Body + Send + 'static + Default>(
-// ) -> impl Service<Request<B>, Output = (Request<B>, (String,)), Error = Error> + Copy
-// where
-//     B::Error: std::error::Error + Send + Sync,
-//     B::Data: Send,
-// {
-//     bytes()
-//         .and_then(|body| async move { do_text(body) })
-//         .err_into()
-// }
-
-// fn do_text<B: Buf>(buf: B) -> Result<String, Error> {
-//     let query = std::str::from_utf8(buf.chunk()).map_err(Error::new)?;
-//     Ok(query.to_owned())
-// }
+pub fn text<B: Body + Send + 'static + Default>() -> impl Service<
+    Request<B>,
+    Output = Outcome<(Request<B>, (String,)), Error, Request<B>>,
+    Future = impl Future + Send,
+> + Copy
+where
+    B::Error: std::error::Error + Send + Sync,
+    B::Data: Send,
+{
+    |mut req: Request<B>| async move {
+        let body = dale::fail!(ToText::new(&mut req).await);
+        dale::success!((req, (body,)))
+    }
+}

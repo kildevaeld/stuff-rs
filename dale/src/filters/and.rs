@@ -7,7 +7,7 @@ use core::pin::Pin;
 use core::task::{Context, Poll};
 use super::generic::{Combine, Extract, HList, Tuple};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct And<T, U> {
     pub(super) first: T,
     pub(super) second: U,
@@ -48,12 +48,7 @@ where
     }
 }
 
-impl<T, U> Copy for And<T, U>
-where
-    T: Copy,
-    U: Copy,
-{
-}
+
 
 pin_project! {
     pub struct AndFuture<R, T: Service<R>, U: Service<R>>

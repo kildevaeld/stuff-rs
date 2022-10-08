@@ -10,7 +10,18 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub struct Error {
-    error: Box<dyn std::error::Error + Send + Sync>,
+    error: Box<dyn StdError + Send + Sync>,
+}
+
+impl Error {
+    pub fn new<E>(error: E) -> Error
+    where
+        E: Into<Box<dyn StdError + Send + Sync>>,
+    {
+        Error {
+            error: error.into(),
+        }
+    }
 }
 
 impl fmt::Display for Error {
@@ -23,6 +34,23 @@ impl StdError for Error {}
 
 impl From<Infallible> for Error {
     fn from(error: Infallible) -> Error {
+        Error {
+            error: Box::new(KnownError::Internal(Box::new(error))),
+        }
+    }
+}
+
+impl From<KnownError> for Error {
+    fn from(error: KnownError) -> Error {
+        Error {
+            error: Box::new(error),
+        }
+    }
+}
+
+#[cfg(feature = "hyper")]
+impl From<hyper::Error> for Error {
+    fn from(error: hyper::Error) -> Error {
         Error {
             error: Box::new(KnownError::Internal(Box::new(error))),
         }
@@ -54,6 +82,8 @@ where
 pub enum KnownError {
     Internal(Box<dyn StdError + Send + Sync>),
     PayloadTooLarge,
+    InvalidHeader(String),
+    MissingHeader(String),
 }
 
 impl fmt::Display for KnownError {

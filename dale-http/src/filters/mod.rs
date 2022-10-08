@@ -1,4 +1,5 @@
 mod body;
+pub mod header;
 mod method;
 mod url;
 

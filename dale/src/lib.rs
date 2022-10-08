@@ -3,6 +3,8 @@
 #[cfg(all(feature = "alloc", not(feature = "std")))]
 extern crate alloc;
 
+mod macros;
+
 mod into_outcome;
 mod middleware;
 mod outcome;

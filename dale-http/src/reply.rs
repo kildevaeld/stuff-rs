@@ -1,7 +1,7 @@
 use std::convert::Infallible;
 
-#[cfg(feature = "headers")]
-use super::Set;
+// #[cfg(feature = "headers")]
+// use crate::modifier::Set;
 use crate::{
     body::Body,
     modifier::{Set, With},
@@ -10,7 +10,6 @@ use crate::{
 use dale::{filters::One, IntoOutcome, Outcome};
 use either::Either;
 #[cfg(feature = "headers")]
-use http::StatusCode;
 use http::{header, HeaderValue, StatusCode};
 use http::{Request, Response, Uri};
 

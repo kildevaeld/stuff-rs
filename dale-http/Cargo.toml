@@ -5,7 +5,7 @@ version = "0.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default = ["hyper", "stream"]
+default = ["hyper", "stream", "headers"]
 
 headers = ["dep:headers"]
 hyper = ["dep:hyper"]
@@ -26,6 +26,8 @@ headers = {version = "0.3", optional = true}
 hyper = {version = "0.14", features = [], optional = true}
 
 pin-utils = "0.1"
+
+tracing = "0.1"
 
 [dev-dependencies]
 hyper = {version = "0.14", features = ["server", "http1", "runtime"]}
