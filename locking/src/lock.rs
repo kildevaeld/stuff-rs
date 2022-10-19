@@ -24,6 +24,7 @@ pub trait WeakLock: Clone {
     fn upgrade(&self) -> Option<Self::Output>;
 }
 
+#[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SendLock<L> {
     lock: Arc<L>,
 }
@@ -69,6 +70,7 @@ impl<L> Downgrade for SendLock<L> {
     }
 }
 
+#[derive(Default, Debug)]
 pub struct WeakSendLock<L>(ArcWeak<L>);
 
 impl<L> WeakLock for WeakSendLock<L> {
@@ -87,6 +89,7 @@ impl<L> Clone for WeakSendLock<L> {
 
 //
 
+#[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NonSendLock<L> {
     lock: Rc<L>,
 }
@@ -132,6 +135,7 @@ impl<L> Downgrade for NonSendLock<L> {
     }
 }
 
+#[derive(Default, Debug)]
 pub struct WeakNonSendLock<L>(RcWeak<L>);
 
 impl<L> WeakLock for WeakNonSendLock<L> {
