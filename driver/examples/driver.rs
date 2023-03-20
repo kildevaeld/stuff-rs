@@ -10,11 +10,12 @@ pub enum Event {
 struct Handle;
 
 impl Handler<Event> for Handle {
+    type Input = ();
     type Output = String;
 
     type Error = Infallible;
 
-    type Request = ();
+    // type Request = ();
 
     type Future = Pin<Box<dyn Future<Output = Result<Self::Output, Self::Error>> + Send>>;
 
@@ -42,7 +43,7 @@ impl Handler<Event> for Handle {
 async fn main() {
     let mut runner = Driver::new(Tokio, Handle);
 
-    runner.workers(10);
+    runner.workers(1);
 
     let ret = runner
         .run_multiple(

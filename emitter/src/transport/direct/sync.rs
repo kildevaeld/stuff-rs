@@ -91,6 +91,10 @@ impl<E> Subscription for SyncDirectSubscription<E> {
     fn close(self) {
         drop(self)
     }
+
+    fn detach(mut self) {
+        self.idx = None;
+    }
 }
 
 impl<E> Drop for SyncDirectSubscription<E> {

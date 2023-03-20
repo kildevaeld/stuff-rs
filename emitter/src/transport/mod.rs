@@ -21,6 +21,7 @@ pub trait Listener<'a, E> {}
 
 pub trait Subscription {
     fn close(self);
+    fn detach(self);
 }
 
 pub trait IntoListener<'a, L, E>

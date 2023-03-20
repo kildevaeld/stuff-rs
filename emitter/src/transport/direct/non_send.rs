@@ -42,6 +42,10 @@ impl<'a, E> Subscription for DirectSubscription<'a, E> {
     fn close(self) {
         drop(self)
     }
+
+    fn detach(mut self) {
+        self.idx = None;
+    }
 }
 
 impl<'a, E> Drop for DirectSubscription<'a, E> {

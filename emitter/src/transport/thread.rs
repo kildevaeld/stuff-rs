@@ -63,6 +63,12 @@ impl<E> Subscription for ThreadSubscription<E> {
             inner.close()
         }
     }
+
+    fn detach(self) {
+        if let Some(inner) = self.0.into_inner() {
+            inner.detach();
+        }
+    }
 }
 
 impl<E> Transport<'static, E> for Thread<E> {
