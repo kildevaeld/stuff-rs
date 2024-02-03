@@ -4,8 +4,6 @@ members = [
   "emitter",
   "state",
   "locking", # "cli-update",
-  "dale",
-  "dale-http",
   "driver",
   "listr",
   "cliupdate",

@@ -6,5 +6,5 @@ version = "0.1.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dale = {path = "../dale", features = ["alloc"]}
+dale = {git = "https://github.com/kildevaeld/dale-rs", features = ["alloc"]}
 value = {git = "https://github.com/kildevaeld/value-rs"}

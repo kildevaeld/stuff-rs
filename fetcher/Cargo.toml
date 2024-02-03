@@ -6,3 +6,24 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+url = { version = "2" }
+async-trait = "0.1"
+reqwest = "0.11"
+bytes = "1"
+thiserror = "1"
+mime = "0.3"
+mime_guess = "2"
+
+relative-path = { version = "1" }
+
+dale = { git = "https://github.com/kildevaeld/dale-rs", features = [
+    "alloc",
+    "std",
+] }
+
+headers = "0.3"
+
+tokio = { version = "1", features = ["fs"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["fs", "rt", "macros"] }
